@@ -95,8 +95,9 @@ object ApiClient {
             val fullContent = StringBuilder()
 
             if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: "Unknown error"
                 return@withContext Result.failure(
-                    Exception("API error: ${response.code} ${response.body?.string()}")
+                    Exception("⚠️ API Error (${response.code}): ${errorBody.take(500)}")
                 )
             }
 
@@ -123,7 +124,83 @@ object ApiClient {
 
             Result.success(fullContent.toString())
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("⚠️ Connection Error: ${e.message}"))
+        }
+    }
+
+    /**
+     * البحث في الويب باستخدام DuckDuckGo
+     */
+    suspend fun webSearch(query: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val encoded = java.net.URLEncoder.encode(query, "UTF-8")
+            val url = "https://html.duckduckgo.com/html/?q=$encoded"
+
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36")
+                .header("Accept", "text/html,application/xhtml+xml")
+                .build()
+
+            val response = client.newCall(request).execute()
+            val html = response.body?.string() ?: ""
+
+            // Parse results simply
+            val results = mutableListOf<String>()
+            val linkRegex = Regex("""<a rel="nofollow" class="result__a" href="([^"]+)"[^>]*>([^<]+)</a>""")
+            val snippetRegex = Regex("""<a class="result__snippet"[^>]*>(.*?)</a>""")
+
+            val linkMatches = linkRegex.findAll(html).toList()
+            val snippetMatches = snippetRegex.findAll(html).toList()
+
+            for (i in linkMatches.indices) {
+                val link = linkMatches[i].groupValues[1]
+                val title = linkMatches[i].groupValues[2].replace(Regex("<[^>]+>"), "")
+                val snippet = if (i < snippetMatches.size) {
+                    snippetMatches[i].groupValues[1].replace(Regex("<[^>]+>"), "").take(200)
+                } else ""
+
+                if (title.isNotBlank()) {
+                    results.add("**${i + 1}. $title**  \n$link  \n$snippet\n")
+                }
+                if (results.size >= 8) break
+            }
+
+            if (results.isEmpty()) {
+                Result.success("❌ No search results found for '$query'")
+            } else {
+                Result.success("🔍 **Search results for:** $query\n\n${results.joinToString("\n")}")
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("⚠️ Search Error: ${e.message}"))
+        }
+    }
+
+    /**
+     * جلب محتوى صفحة ويب
+     */
+    suspend fun webFetch(url: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                .build()
+
+            val response = client.newCall(request).execute()
+            val html = response.body?.string() ?: ""
+            
+            // Extract text content (strip HTML tags)
+            val textOnly = html
+                .replace(Regex("<script[^>]*>.*?</script>", RegexOption.DOT_MATCHES_ALL), "")
+                .replace(Regex("<style[^>]*>.*?</style>", RegexOption.DOT_MATCHES_ALL), "")
+                .replace(Regex("<[^>]+>"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+                .take(5000)
+
+            Result.success("📄 **Content from:** $url\n\n$textOnly")
+        } catch (e: Exception) {
+            Result.failure(Exception("⚠️ Fetch Error: ${e.message}"))
         }
     }
 
@@ -181,7 +258,6 @@ object ApiClient {
 
     private fun generateRandomPassword(): String {
         val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-        val domains = listOf("gmail.com", "yahoo.com", "outlook.com")
         return "${(1..4).map { chars.random() }.joinToString("")}A1${(1..4).map { chars.random() }.joinToString("")}"
     }
 

@@ -1,8 +1,5 @@
 package com.darkps.agentterminal.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -118,7 +117,11 @@ fun ChatScreen(
                 tonalElevation = 0.dp,
                 shadowElevation = 8.dp
             ) {
-                Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .navigationBarsPadding() // Fix: Add padding for navigation bar
+                        .imePadding()            // Fix: Add padding for keyboard
+                ) {
                     // Model Selector
                     ModelSelector(
                         selectedModel = selectedModel,
@@ -157,10 +160,10 @@ fun ChatScreen(
                                 focusedContainerColor = DarkSurface,
                                 unfocusedContainerColor = DarkSurface
                             ),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardOptions = KeyboardOptions(
                                 imeAction = ImeAction.Send
                             ),
-                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            keyboardActions = KeyboardActions(
                                 onSend = {
                                     if (inputText.isNotBlank() && !isLoading) {
                                         onSendMessage(inputText.trim())
@@ -170,28 +173,49 @@ fun ChatScreen(
                             )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        FilledIconButton(
-                            onClick = {
-                                if (inputText.isNotBlank() && !isLoading) {
-                                    onSendMessage(inputText.trim())
-                                    inputText = ""
-                                }
-                            },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .padding(bottom = 2.dp),
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = if (isLoading) TextTertiary else AccentPrimary,
-                                contentColor = DarkBackground
-                            ),
-                            enabled = inputText.isNotBlank() && !isLoading
-                        ) {
-                            Icon(
-                                if (isLoading) Icons.Default.HourglassEmpty
-                                else Icons.Default.Send,
-                                contentDescription = "Send"
-                            )
+
+                        // Send / Retry button
+                        if (isLoading) {
+                            FilledIconButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .padding(bottom = 2.dp),
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = TextTertiary,
+                                    contentColor = DarkBackground
+                                ),
+                                enabled = false
+                            ) {
+                                Icon(
+                                    Icons.Default.HourglassEmpty,
+                                    contentDescription = "Loading"
+                                )
+                            }
+                        } else {
+                            FilledIconButton(
+                                onClick = {
+                                    if (inputText.isNotBlank()) {
+                                        onSendMessage(inputText.trim())
+                                        inputText = ""
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .padding(bottom = 2.dp),
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = if (inputText.isBlank()) TextTertiary else AccentPrimary,
+                                    contentColor = DarkBackground
+                                ),
+                                enabled = inputText.isNotBlank()
+                            ) {
+                                Icon(
+                                    Icons.Default.Send,
+                                    contentDescription = "Send"
+                                )
+                            }
                         }
                     }
                 }
@@ -222,20 +246,45 @@ fun ChatScreen(
                 }
             }
         } else {
-            LazyColumn(
-                state = listState,
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                    .padding(paddingValues)
             ) {
-                items(messages, key = { it.id }) { message ->
-                    MessageBubble(message = message)
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(messages, key = { it.id }) { message ->
+                        MessageBubble(message = message)
+                    }
+
+                    // Bottom spacing for scrolling
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
 
-                // Bottom spacing for scrolling
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
+                // Scroll to bottom FAB
+                if (messages.size > 5) {
+                    FloatingActionButton(
+                        onClick = {
+                            listState.animateScrollToItem(messages.size - 1)
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(16.dp)
+                            .size(40.dp),
+                        containerColor = AccentPrimary.copy(alpha = 0.8f),
+                        contentColor = DarkBackground
+                    ) {
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Scroll to bottom",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }
