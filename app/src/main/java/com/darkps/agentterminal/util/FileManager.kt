@@ -1,12 +1,15 @@
 package com.darkps.agentterminal.util
 
 import android.content.Context
-import android.os.Environment
 import java.io.File
 
 object FileManager {
     private const val APP_ROOT = "DarkPSAgent"
 
+    /**
+     * مسار التخزين الرئيسي - داخل التخزين الداخلي للتطبيق
+     * المسار: /storage/emulated/0/Android/data/com.darkps.agentterminal/files/DarkPSAgent/
+     */
     fun getAppRoot(context: Context): File {
         val extDir = context.getExternalFilesDir(null)
         return if (extDir != null) {
@@ -14,6 +17,13 @@ object FileManager {
         } else {
             File(context.filesDir, APP_ROOT).also { it.mkdirs() }
         }
+    }
+
+    /**
+     * الحصول على مسار التخزين بشكل نصي
+     */
+    fun getAppRootPath(context: Context): String {
+        return getAppRoot(context).absolutePath
     }
 
     fun listFiles(context: Context, path: String): List<File> {
@@ -26,11 +36,14 @@ object FileManager {
 
     fun getFile(context: Context, path: String): File {
         val root = getAppRoot(context)
-        return if (path.startsWith("/")) {
-            File(root, path.removePrefix("/"))
-        } else {
-            File(root, path)
+        // المسارات تكون دائماً نسبة لمجلد التطبيق
+        val cleanPath = path.trimStart('/')
+        val target = File(root, cleanPath).normalize()
+        // تأكد من أن الملف داخل مجلد التطبيق (حماية)
+        if (!target.absolutePath.startsWith(root.absolutePath)) {
+            return File(root, cleanPath)
         }
+        return target
     }
 
     fun createFile(context: Context, path: String, isDirectory: Boolean): Boolean {
@@ -64,6 +77,23 @@ object FileManager {
         return try {
             val file = getFile(context, path)
             file.parentFile?.mkdirs()
+            file.writeText(content)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * تعديل جزء معين في ملف - بحث واستبدال
+     */
+    fun patchFileContent(context: Context, path: String, findText: String, replaceText: String): Boolean {
+        return try {
+            val file = getFile(context, path)
+            if (!file.exists()) return false
+            var content = file.readText()
+            if (!content.contains(findText)) return false
+            content = content.replace(findText, replaceText)
             file.writeText(content)
             true
         } catch (e: Exception) {

@@ -35,121 +35,193 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _eventLog = MutableStateFlow<List<String>>(emptyList())
     val eventLog: StateFlow<List<String>> = _eventLog.asStateFlow()
 
-    // System prompt for DarkPS agent with ALL tools and two-stage project generation
+    // ============================================================
+    //  SYSTEM PROMPT - مع تقسيم المهام إلى 3 مراحل + العربية
+    // ============================================================
     private val systemPrompt = buildString {
-        appendLine("You are DarkPs, an autonomous AI software engineering agent running on Android.")
-        appendLine("You have the ability to CREATE FILES on the device, search the web, and manage projects.")
+        appendLine("أنت وكيل DarkPs للذكاء الاصطناعي يعمل على جهاز Android.")
+        appendLine("لديك القدرة على إنشاء الملفات والمجلدات، البحث في الويب، وإدارة المشاريع.")
         appendLine()
-        appendLine("=== YOUR CAPABILITIES ===")
+        appendLine("===================== قدراتك =====================")
         appendLine()
-        appendLine("1. **FILE CREATION TOOLS**:")
-        appendLine("   You can create files and directories using [TOOL] blocks in your response.")
+        appendLine("1️⃣ **أدوات إنشاء الملفات (File Tools):**")
         appendLine()
-        appendLine("   To create a directory:")
+        appendLine("   📁 **إنشاء مجلد:**")
         appendLine("   [TOOL]")
-        appendLine("   {\"tool\": \"create_dir\", \"path\": \"project-name/src\"}")
+        appendLine("   {\"tool\": \"create_dir\", \"path\": \"اسم-المشروع/src\"}")
         appendLine("   [/TOOL]")
         appendLine()
-        appendLine("   To create a single file:")
+        appendLine("   📄 **إنشاء ملف واحد:**")
         appendLine("   [TOOL]")
-        appendLine("   {\"tool\": \"create_file\", \"path\": \"project-name/index.html\", \"content\": \"<html>...\\n...\\n</html>\"}")
+        appendLine("   {\"tool\": \"create_file\", \"path\": \"اسم-المشروع/index.html\", \"content\": \"<html>...\\n...\\n</html>\"}")
         appendLine("   [/TOOL]")
         appendLine()
-        appendLine("   To create multiple files at once (RECOMMENDED for projects):")
+        appendLine("   📚 **إنشاء عدة ملفات معاً (مستحسن للمشاريع):**")
         appendLine("   [TOOL]")
         appendLine("   {\"tool\": \"create_files\", \"files\": [")
-        appendLine("     {\"path\": \"project/index.html\", \"content\": \"<html>...</html>\"},")
-        appendLine("     {\"path\": \"project/style.css\", \"content\": \"body {...}\"},")
-        appendLine("     {\"path\": \"project/script.js\", \"content\": \"console.log(...)\"}")
+        appendLine("     {\"path\": \"مشروعي/index.html\", \"content\": \"<html>...</html>\"},")
+        appendLine("     {\"path\": \"مشروعي/style.css\", \"content\": \"body {...}\"},")
+        appendLine("     {\"path\": \"مشروعي/script.js\", \"content\": \"console.log(...)\"}")
         appendLine("   ]}")
         appendLine("   [/TOOL]")
         appendLine()
-        appendLine("2. **WEB SEARCH**:")
+        appendLine("   🔧 **تعديل جزء معين من ملف (patch) - بدلاً من إعادة كتابة الملف كاملاً:**")
         appendLine("   [TOOL]")
-        appendLine("   {\"tool\": \"web_search\", \"query\": \"your search query\"}")
+        appendLine("   {\"tool\": \"patch_file\", \"path\": \"اسم-المشروع/script.js\", \"find\": \"النص القديم\", \"replace\": \"النص الجديد\"}")
         appendLine("   [/TOOL]")
         appendLine()
-        appendLine("3. **WEB FETCH** (get content from a URL):")
+        appendLine("2️⃣ **أدوات البحث (Web Tools):**")
+        appendLine()
+        appendLine("   🔍 **بحث في الويب:**")
+        appendLine("   [TOOL]")
+        appendLine("   {\"tool\": \"web_search\", \"query\": \"سؤال البحث\"}")
+        appendLine("   [/TOOL]")
+        appendLine()
+        appendLine("   🌐 **جلب محتوى صفحة:**")
         appendLine("   [TOOL]")
         appendLine("   {\"tool\": \"web_fetch\", \"url\": \"https://example.com\"}")
         appendLine("   [/TOOL]")
         appendLine()
-        appendLine("=== PROJECT GENERATION WORKFLOW ===")
+        appendLine("========== نظام العمل - تقسيم المهام إلى 3 مراحل ==========")
         appendLine()
-        appendLine("When the user asks you to CREATE a project (website, app, etc.), follow this exact workflow:")
+        appendLine("عندما يطلب منك المستخدم **إنشاء مشروع** (موقع، تطبيق، برنامج)، اتبع هذا النظام:")
         appendLine()
-        appendLine("**PHASE 1: ANALYZE**")
-        appendLine("- Analyze the user's request and identify all requirements")
-        appendLine("- List the files you will create and their purposes")
-        appendLine("- Show the project structure clearly to the user")
+        appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        appendLine("  المرحلة 1: إنشاء هيكل المشروع (Task 1)")
+        appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         appendLine()
-        appendLine("**PHASE 2: CREATE**")
-        appendLine("- Create the project directory first")
-        appendLine("- Then create ALL files using create_files or individual create_file calls")
-        appendLine("- Show progress messages like: '📁 Creating project...' '📄 Creating index.html...'")
-        appendLine("- Include complete, working code in every file")
+        appendLine("📋 ابدأ بعرض رسالة مثل:")
+        appendLine("\"📋 **بدء إنشاء المشروع...**\"")
+        appendLine("\"📂 **المرحلة 1/3: إنشاء هيكل المجلدات...**\"")
         appendLine()
-        appendLine("**PHASE 3: REVIEW**")
-        appendLine("- After creating all files, review the code")
-        appendLine("- Check for any errors or issues")
-        appendLine("- If errors are found, fix them by recreating the file")
-        appendLine("- Tell the user the project is complete")
+        appendLine("✅ أنشئ جميع المجلدات اللازمة للمشروع")
+        appendLine("✅ اشرح للمستخدم هيكل المشروع")
         appendLine()
-        appendLine("=== IMPORTANT ===")
-        appendLine("- Always use the [TOOL] format for file operations")
-        appendLine("- Show progress messages in your response text")
-        appendLine("- Use \\n for newlines in JSON strings")
-        appendLine("- Create complete, production-ready code")
-        appendLine("- Support ALL programming languages and file types")
-        appendLine("- Web search results will be automatically fetched and provided")
+        appendLine("استخدم:")
+        appendLine("[TOOL]")
+        appendLine("{\"tool\": \"create_dir\", \"path\": \"اسم-المشروع/src\"}")
+        appendLine("[/TOOL]")
         appendLine()
-        appendLine("Your primary goal is to reliably accomplish the user's request by creating actual files on their device.")
+        appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        appendLine("  المرحلة 2: كتابة الأكواد داخل الملفات (Task 2)")
+        appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        appendLine()
+        appendLine("📝 ابدأ بعرض رسالة مثل:")
+        appendLine("\"✍️ **المرحلة 2/3: كتابة الأكواد...**\"")
+        appendLine()
+        appendLine("✅ أكتب كود كامل ومتكامل لكل ملف")
+        appendLine("✅ أظهر التقدم لكل ملف:")
+        appendLine("   \"📄 جاري إنشاء index.html... ✓\"")
+        appendLine("   \"📄 جاري إنشاء style.css... ✓\"")
+        appendLine("   \"📄 جاري إنشاء script.js... ✓\"")
+        appendLine()
+        appendLine("استخدم create_files لإنشاء عدة ملفات معاً:")
+        appendLine("[TOOL]")
+        appendLine("{\"tool\": \"create_files\", \"files\": [...]}")
+        appendLine("[/TOOL]")
+        appendLine()
+        appendLine("أو create_file لملف منفرد:")
+        appendLine("[TOOL]")
+        appendLine("{\"tool\": \"create_file\", \"path\": \"...\", \"content\": \"...\"}")
+        appendLine("[/TOOL]")
+        appendLine()
+        appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        appendLine("  المرحلة 3: مراجعة الأكواد وإصلاح الأخطاء (Task 3)")
+        appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        appendLine()
+        appendLine("🔍 ابدأ بعرض رسالة مثل:")
+        appendLine("\"🔍 **المرحلة 3/3: مراجعة الأكواد...**\"")
+        appendLine()
+        appendLine("✅ راجع الكود الذي كتبته")
+        appendLine("✅ ابحث عن أي أخطاء أو مشاكل")
+        appendLine()
+        appendLine("🔴 **إذا وجدت خطأ في ملف:**")
+        appendLine("   - لا تعيد كتابة الملف كاملاً!")
+        appendLine("   - استخدم **patch_file** لتعديل الجزء المحدد فقط")
+        appendLine()
+        appendLine("   [TOOL]")
+        appendLine("   {\"tool\": \"patch_file\", \"path\": \"اسم-المشروع/script.js\", \"find\": \"الجزء الخطأ\", \"replace\": \"الجزء الصحيح\"}")
+        appendLine("   [/TOOL]")
+        appendLine()
+        appendLine("✅ أظهر رسالة مثل:")
+        appendLine("\"✅ **المراجعة اكتملت!** تم إنشاء المشروع بنجاح.\"")
+        appendLine("\"📂 جميع الملفات موجودة في مجلد التطبيق الداخلي.\"")
+        appendLine()
+        appendLine("========================================================")
+        appendLine()
+        appendLine("🗣️ **مهم جداً:**")
+        appendLine("- تحدث مع المستخدم باللغة العربية")
+        appendLine("- أظهر رسائل التقدم بالعربي")
+        appendLine("- استخدم الرموز التعبيرية لتوضيح الحالة (✅ 📄 📁 ✍️ 🔍)")
+        appendLine("- كل الـ [TOOL] بلوكات والرسائل تكون بالعربي")
+        appendLine("- ادعم كل لغات البرمجة: HTML, CSS, JS, Python, Kotlin, Java, Swift, C++, وغيرها")
+        appendLine("- المجلد الرئيسي للمشاريع هو: DarkPSAgent داخل التخزين الداخلي للتطبيق")
+        appendLine()
+        val appRootPath = try {
+            FileManager.getAppRoot(appContext).absolutePath
+        } catch (e: Exception) {
+            "internal storage/DarkPSAgent/"
+        }
+        appendLine("📌 **مسار التخزين:** $appRootPath")
     }
 
     init {
         viewModelScope.launch {
-            addEvent("Initializing DarkPS Agent...")
+            addEvent("🔄 جاري تهيئة وكيل DarkPS...")
             val result = ApiClient.initialize()
             if (result.isSuccess) {
                 _isInitialized.value = true
-                addEvent("DarkPS Agent initialized successfully")
+                addEvent("✅ تم تهيئة الوكيل بنجاح")
                 _messages.value = listOf(
                     ChatMessage(
                         content = buildString {
-                            appendLine("👋 Welcome to **DarkPS Agent Terminal**!")
+                            appendLine("👋 **أهلاً بك في وكيل DarkPS!**")
                             appendLine()
-                            appendLine("أهلاً بك في وكيل DarkPS الذكي")
+                            appendLine("أنا وكيل ذكاء اصطناعي أستطيع مساعدتك في:")
                             appendLine()
-                            appendLine("**قدراتي:**")
-                            appendLine("- 💻 **إنشاء المشاريع**: اطلب أي مشروع (موقع، تطبيق، برنامج) وسأقوم بإنشاء جميع الملفات")
-                            appendLine("- 📁 **إدارة الملفات**: إنشاء، حذف، قراءة، كتابة")
-                            appendLine("- 🔍 **البحث في الويب**: أستطيع البحث وجلب المعلومات")
-                            appendLine("- 🤖 **دردشة ذكية**: مع 22+ نموذج AI")
+                            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            appendLine("  📁 **إنشاء المشاريع**")
+                            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            appendLine("اطلب أي مشروع وسأقوم بإنشاء جميع الملفات تلقائياً")
                             appendLine()
-                            appendLine("**How to use:**")
-                            appendLine("- *'Create a website with HTML, CSS, JS'*")
-                            appendLine("- *'Build a Kotlin Android app'*")
-                            appendLine("- *'Search the web for...'*")
-                            appendLine("- *'Create a Python script for...'*")
+                            appendLine("**مثال:**")
+                            appendLine("> \"اعمل موقع HTML كامل به صفحة هبوط احترافية\"")
+                            appendLine("> \"أنشئ تطبيق آلة حاسبة بلغة Kotlin\"")
+                            appendLine("> \"برنامج Python لتحميل الفيديوهات\"")
                             appendLine()
-                            appendLine("✨ **Models available:** Select from the dropdown below")
+                            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            appendLine("  🔍 **البحث في الويب**")
+                            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            appendLine("أستطيع البحث وجلب المعلومات من الإنترنت")
+                            appendLine()
+                            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            appendLine("  📂 **إدارة الملفات**")
+                            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            appendLine("إنشاء، حذف، قراءة، كتابة الملفات والمجلدات")
+                            appendLine()
+                            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            appendLine("  🤖 **نماذج الذكاء الاصطناعي**")
+                            appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            appendLine("اختر من 22+ نموذج من القائمة أدناه 👇")
+                            appendLine()
+                            appendLine("✨ **جرب الأن:** اكتب \"اعمل لي موقع HTML\"")
                         },
                         role = MessageRole.ASSISTANT
                     )
                 )
             } else {
                 val error = result.exceptionOrNull()
-                addEvent("⚠️ Initialization failed: ${error?.message}")
+                addEvent("⚠️ فشل التهيئة: ${error?.message}")
                 _messages.value = listOf(
                     ChatMessage(
-                        content = """⚠️ **Failed to initialize DarkPS Agent.**
+                        content = """⚠️ **فشل الاتصال بالوكيل.**
 
 خطأ: ${error?.message}
 
-💡 **Tips:**
-1. تحقق من اتصال الإنترنت
-2. حاول مرة أخرى
-3. جرب نموذج آخر من القائمة
+💡 **نصائح:**
+1. تحقق من اتصالك بالإنترنت
+2. جرب نموذج آخر من القائمة
+3. حاول مرة أخرى
 
 Error: ${error?.message}""",
                         role = MessageRole.ASSISTANT,
@@ -170,10 +242,10 @@ Error: ${error?.message}""",
 
         _messages.value = _messages.value + userMessage
         _isLoading.value = true
-        addEvent("📤 Sending: ${text.take(80)}...")
+        addEvent("📤 إرسال: ${text.take(80)}...")
 
         val loadingMessage = ChatMessage(
-            content = "⏳ Thinking...",
+            content = "⏳ جاري التفكير...",
             role = MessageRole.ASSISTANT,
             isLoading = true
         )
@@ -187,13 +259,13 @@ Error: ${error?.message}""",
                 val currentMessages = _messages.value.toMutableList()
                 if (currentMessages.isNotEmpty() && currentMessages.last().isLoading) {
                     currentMessages[currentMessages.size - 1] = currentMessages.last().copy(
-                        content = "❌ **Unexpected Error:**\n${e.message}\n\n👉 Click Retry (↻) to try again.",
+                        content = "❌ **حدث خطأ غير متوقع:**\n${e.message}\n\n👉 اضغط على ↻ لإعادة المحاولة",
                         isLoading = false,
                         isError = true
                     )
                 }
                 _messages.value = currentMessages
-                addEvent("❌ Error: ${e.message}")
+                addEvent("❌ خطأ: ${e.message}")
             }
         }
     }
@@ -212,16 +284,14 @@ Error: ${error?.message}""",
                 )
             }
 
-        // Build messages with system prompt
         val allMessages = mutableListOf(
             mapOf("role" to "system", "content" to systemPrompt)
         )
-        allMessages.addAll(chatHistory.dropLast(1)) // Remove loading placeholder
+        allMessages.addAll(chatHistory.dropLast(1))
 
         val modelId = _selectedModel.value.id
         val contentBuilder = StringBuilder()
 
-        // Send to API
         val result = ApiClient.sendMessage(
             messages = allMessages,
             model = modelId,
@@ -234,79 +304,112 @@ Error: ${error?.message}""",
         _isLoading.value = false
 
         result.onSuccess { fullContent ->
-            addEvent("📥 Response received (${fullContent.length} chars)")
+            addEvent("📥 تم استلام الرد (${fullContent.length} حرف)")
 
-            // Parse and execute tool actions
             val toolActions = ToolActionParser.parseToolActions(fullContent)
             val cleanContent = ToolActionParser.removeToolBlocks(fullContent)
 
             if (toolActions.isNotEmpty()) {
-                addEvent("🔧 Found ${toolActions.size} tool action(s)")
+                // Find the app root path for info
+                val appRoot = try {
+                    FileManager.getAppRoot(appContext).absolutePath
+                } catch (e: Exception) { "مسار التطبيق" }
 
-                // Execute tool actions
-                executeToolActions(toolActions)
+                addEvent("🔧 ${toolActions.size} أداة/أدوات سيتم تنفيذها")
 
-                // Update message with clean content and file creation summary
+                // Execute tool actions and collect results
+                val results = executeToolActions(toolActions)
+                val successCount = results.count { it }
+                val failCount = results.count { !it }
+
+                // Build summary message
                 val summary = buildString {
-                    appendLine("✅ **Files Created Successfully!**")
-                    appendLine()
-                    for (action in toolActions) {
-                        when (action.tool) {
-                            "create_file" -> appendLine("📄 `${action.path}`")
-                            "create_dir" -> appendLine("📁 `${action.path}/`")
-                            "create_files" -> {
-                                action.files?.forEach { file ->
-                                    appendLine("📄 `${file.path}`")
-                                }
-                            }
-                            "web_search" -> appendLine("🔍 Search results for: `${action.query}`")
-                            "web_fetch" -> appendLine("🌐 Fetched: `${action.url}`")
-                        }
-                    }
-                    appendLine()
+                    // Show the AI's progress text first
                     if (cleanContent.isNotBlank()) {
-                        appendLine("---")
                         appendLine(cleanContent)
+                        appendLine()
+                    }
+
+                    // Then show file creation summary
+                    if (toolActions.any { it.tool in listOf("create_file", "create_dir", "create_files", "patch_file") }) {
+                        appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                        if (failCount == 0) {
+                            appendLine("✅ **تم إنشاء المشروع بنجاح!**")
+                        } else {
+                            appendLine("⚠️ **تم الإنشاء مع بعض الأخطاء**")
+                        }
+                        appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━")
+                        appendLine()
+
+                        for (action in toolActions) {
+                            when (action.tool) {
+                                "create_file" -> appendLine("📄 `/${action.path}` ✓")
+                                "create_dir" -> appendLine("📁 `/${action.path}/` ✓")
+                                "patch_file" -> appendLine("🔧 `/${action.path}` تم التعديل ✓")
+                                "create_files" -> {
+                                    action.files?.forEach { file ->
+                                        appendLine("📄 `/${file.path}` ✓")
+                                    }
+                                }
+                                "web_search" -> appendLine("🔍 بحث: ${action.query} ✓")
+                                "web_fetch" -> appendLine("🌐 جلب: ${action.url} ✓")
+                            }
+                        }
+
+                        appendLine()
+                        appendLine("📂 **الملفات موجودة في:**")
+                        appendLine("`$appRoot`")
+                        appendLine()
+                        appendLine("💡 اذهب إلى **File Manager** لرؤية الملفات")
+                    } else if (cleanContent.isBlank()) {
+                        // If no text and no file operations, show the actions
+                        appendLine("✅ تم تنفيذ ${toolActions.size} أداة بنجاح")
                     }
                 }
 
                 updateLastMessage(summary, isLoading = false)
             } else if (fullContent.isNotBlank()) {
-                val finalContent = fullContent.ifEmpty { "No response generated." }
+                val finalContent = fullContent.ifEmpty { "لم يتم إنشاء رد." }
                 updateLastMessage(finalContent, isLoading = false)
             } else {
-                updateLastMessage("⚠️ The model returned an empty response. Please try again with a different model.", isLoading = false, isError = true)
+                updateLastMessage("⚠️ النموذج لم ينتج رد. حاول مرة أخرى أو جرب نموذج آخر.", isLoading = false, isError = true)
             }
 
         }.onFailure { error ->
-            val errorMsg = error.message ?: "Unknown error"
-            addEvent("❌ Error: $errorMsg")
+            val errorMsg = error.message ?: "خطأ غير معروف"
+            addEvent("❌ خطأ: $errorMsg")
             updateLastMessage(
-                "❌ **Error Occurred**\n\n$errorMsg\n\n👉 **Suggestions:**\n1. Try a different model from the dropdown\n2. Check your internet connection\n3. Tap ↻ Retry to try again",
+                "❌ **حدث خطأ**\n\n$errorMsg\n\n💡 **اقتراحات:**\n1. جرب نموذج آخر من القائمة\n2. تحقق من اتصال الإنترنت\n3. اضغط ↻ لإعادة المحاولة",
                 isLoading = false,
                 isError = true
             )
         }
     }
 
-    private suspend fun executeToolActions(actions: List<ToolAction>) {
-        for ((index, action) in actions.withIndex()) {
-            addEvent("⚡ Executing: ${action.tool} (${index + 1}/${actions.size})")
+    /**
+     * تنفيذ أدوات إنشاء الملفات وإرجاع نتائج كل أداة
+     */
+    private suspend fun executeToolActions(actions: List<ToolAction>): List<Boolean> {
+        val results = mutableListOf<Boolean>()
 
+        for ((index, action) in actions.withIndex()) {
             when (action.tool) {
                 "create_dir" -> {
                     action.path?.let { path ->
+                        addEvent("📁 إنشاء مجلد: $path")
                         val success = withContext(Dispatchers.IO) {
                             FileManager.createFile(appContext, path, isDirectory = true)
                         }
-                        addEvent(if (success) "📁 Created directory: $path" else "❌ Failed to create directory: $path")
+                        results.add(success)
+                        if (success) addEvent("✅ تم إنشاء المجلد: $path")
+                        else addEvent("❌ فشل إنشاء المجلد: $path")
                     }
                 }
                 "create_file" -> {
                     action.path?.let { path ->
                         val content = action.content ?: ""
+                        addEvent("📄 إنشاء ملف: $path")
                         val success = withContext(Dispatchers.IO) {
-                            // Ensure parent directory exists
                             val parent = path.split("/").dropLast(1).joinToString("/")
                             if (parent.isNotBlank()) {
                                 FileManager.createFile(appContext, parent, isDirectory = true)
@@ -314,63 +417,99 @@ Error: ${error?.message}""",
                             FileManager.createFile(appContext, path, isDirectory = false)
                             FileManager.writeFileContent(appContext, path, content)
                         }
-                        addEvent(if (success) "📄 Created file: $path (${content.length} chars)" else "❌ Failed to create file: $path")
+                        results.add(success)
+                        if (success) addEvent("✅ تم إنشاء الملف: $path (${content.length} حرف)")
+                        else addEvent("❌ فشل إنشاء الملف: $path")
                     }
                 }
                 "create_files" -> {
                     action.files?.let { files ->
-                        addEvent("📁 Creating project with ${files.size} files...")
+                        addEvent("📚 إنشاء مشروع ب ${files.size} ملف...")
+                        var allSuccess = true
                         for ((i, file) in files.withIndex()) {
                             val success = withContext(Dispatchers.IO) {
-                                // Ensure parent directory exists
                                 if (file.getFolderPath().isNotBlank()) {
                                     FileManager.createFile(appContext, file.getFolderPath(), isDirectory = true)
                                 }
                                 FileManager.createFile(appContext, file.path, isDirectory = false)
                                 FileManager.writeFileContent(appContext, file.path, file.content)
                             }
-                            addEvent(if (success) "  ✅ [${i + 1}/${files.size}] Created: ${file.path}" else "  ❌ Failed: ${file.path}")
+                            if (success) {
+                                addEvent("  ✅ [${i + 1}/${files.size}] ${file.path}")
+                            } else {
+                                addEvent("  ❌ [${i + 1}/${files.size}] فشل: ${file.path}")
+                                allSuccess = false
+                            }
                         }
-                        addEvent("✅ Project created: ${files.size} files total")
+                        results.add(allSuccess)
+                        if (allSuccess) addEvent("✅ المشروع مكتمل: ${files.size} ملف")
+                        else addEvent("⚠️ تم الإنشاء مع بعض الأخطاء")
+                    }
+                }
+                "patch_file" -> {
+                    action.path?.let { path ->
+                        val find = action.find ?: continue
+                        val replace = action.replace ?: ""
+                        addEvent("🔧 تعديل ملف: $path")
+                        val success = withContext(Dispatchers.IO) {
+                            val result = FileManager.patchFileContent(appContext, path, find, replace)
+                            if (result) {
+                                addEvent("✅ تم تعديل $path")
+                            } else {
+                                addEvent("⚠️ لم يتم العثور على النص في $path أو فشل التعديل")
+                            }
+                            result
+                            }
+                        }
+                        results.add(success)
+                        if (success) addEvent("✅ تم تعديل $path بنجاح")
+                        else addEvent("❌ فشل تعديل $path")
                     }
                 }
                 "web_search" -> {
                     action.query?.let { query ->
-                        addEvent("🔍 Searching for: $query")
+                        addEvent("🔍 البحث عن: $query")
                         val searchResult = ApiClient.webSearch(query)
-                        searchResult.onSuccess { result ->
-                            // Add search result as a system message for context
-                            // But also show it in the event log
-                            addEvent("🔍 Search completed")
-                            // We don't modify messages here, the search result will be in the next turn
+                        searchResult.onSuccess {
+                            addEvent("🔍 تم البحث بنجاح")
+                            results.add(true)
                         }.onFailure { error ->
-                            addEvent("❌ Search failed: ${error.message}")
+                            addEvent("❌ فشل البحث: ${error.message}")
+                            results.add(false)
                         }
                     }
                 }
                 "web_fetch" -> {
                     action.url?.let { url ->
-                        addEvent("🌐 Fetching: $url")
+                        addEvent("🌐 جلب: $url")
                         val fetchResult = ApiClient.webFetch(url)
                         fetchResult.onSuccess {
-                            addEvent("🌐 Fetched successfully")
+                            addEvent("🌐 تم الجلب بنجاح")
+                            results.add(true)
                         }.onFailure { error ->
-                            addEvent("❌ Fetch failed: ${error.message}")
+                            addEvent("❌ فشل الجلب: ${error.message}")
+                            results.add(false)
                         }
                     }
                 }
+                else -> {
+                    addEvent("⚠️ أداة غير معروفة: ${action.tool}")
+                    results.add(false)
+                }
             }
         }
+
+        return results
     }
 
     fun selectModel(model: AiModel) {
         _selectedModel.value = model
-        addEvent("🔄 Model changed to: ${model.name}")
+        addEvent("🔄 تم تغيير النموذج إلى: ${model.name}")
     }
 
     fun clearChat() {
         _messages.value = emptyList()
-        addEvent("🗑️ Chat cleared")
+        addEvent("🗑️ تم مسح المحادثة")
     }
 
     fun retryLastMessage() {
@@ -378,12 +517,11 @@ Error: ${error?.message}""",
         val lastUserMsg = msgs.lastOrNull { it.role == MessageRole.USER } ?: return
         val lastAssistantMsg = msgs.lastOrNull { it.role == MessageRole.ASSISTANT && !it.isLoading }
 
-        // Remove last assistant message if exists (error or response)
         if (lastAssistantMsg != null && msgs.isNotEmpty() && msgs.last() == lastAssistantMsg) {
             _messages.value = msgs.dropLast(1)
         }
 
-        addEvent("🔄 Retrying last message...")
+        addEvent("🔄 إعادة المحاولة...")
         sendMessage(lastUserMsg.content)
     }
 
@@ -402,7 +540,6 @@ Error: ${error?.message}""",
         val currentMessages = _messages.value.toMutableList()
         if (currentMessages.isNotEmpty()) {
             val lastIndex = currentMessages.size - 1
-            // Check if we should update the loading message or add a new one
             if (currentMessages[lastIndex].isLoading) {
                 currentMessages[lastIndex] = currentMessages[lastIndex].copy(
                     content = content,

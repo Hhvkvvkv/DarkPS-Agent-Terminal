@@ -10,7 +10,9 @@ data class ToolAction(
     val query: String? = null,
     val url: String? = null,
     val isDirectory: Boolean = false,
-    val files: List<FileToCreate>? = null
+    val files: List<FileToCreate>? = null,
+    val find: String? = null,
+    val replace: String? = null
 )
 
 data class FileToCreate(
@@ -34,7 +36,6 @@ object ToolActionParser {
     fun parseToolActions(response: String): List<ToolAction> {
         val actions = mutableListOf<ToolAction>()
 
-        // Find [TOOL]...[/TOOL] blocks
         val matches = toolBlockRegex.findAll(response)
         for (match in matches) {
             val jsonStr = match.groupValues[1].trim()
@@ -78,6 +79,18 @@ object ToolActionParser {
                             ))
                         }
                     }
+                    "patch_file" -> {
+                        // تحرير جزئي للملف: البحث عن جزء واستبداله
+                        val path = json.get("path")?.asString ?: continue
+                        val find = json.get("find")?.asString ?: continue
+                        val replace = json.get("replace")?.asString ?: ""
+                        actions.add(ToolAction(
+                            tool = "patch_file",
+                            path = path,
+                            find = find,
+                            replace = replace
+                        ))
+                    }
                     "web_search" -> {
                         val query = json.get("query")?.asString ?: continue
                         actions.add(ToolAction(
@@ -101,9 +114,6 @@ object ToolActionParser {
         return actions
     }
 
-    /**
-     * Remove tool blocks from the response text for clean display
-     */
     fun removeToolBlocks(response: String): String {
         return response.replace(toolBlockRegex, "").trim()
     }
