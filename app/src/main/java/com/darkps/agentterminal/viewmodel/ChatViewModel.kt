@@ -447,23 +447,19 @@ Error: ${error?.message}""",
                     }
                 }
                 "patch_file" -> {
-                    action.path?.let { path ->
-                        val find = action.find ?: continue
-                        val replace = action.replace ?: ""
-                        addEvent("🔧 تعديل ملف: $path")
+                    val p = action.path
+                    val f = action.find
+                    val r = action.replace
+                    if (p != null && f != null) {
+                        addEvent("🔧 تعديل ملف: $p")
                         val success = withContext(Dispatchers.IO) {
-                            val result = FileManager.patchFileContent(appContext, path, find, replace)
-                            if (result) {
-                                addEvent("✅ تم تعديل $path")
-                            } else {
-                                addEvent("⚠️ لم يتم العثور على النص في $path أو فشل التعديل")
-                            }
-                            result
-                            }
+                            FileManager.patchFileContent(appContext, p, f, r ?: "")
                         }
                         results.add(success)
-                        if (success) addEvent("✅ تم تعديل $path بنجاح")
-                        else addEvent("❌ فشل تعديل $path")
+                        if (success) addEvent("✅ تم تعديل $p بنجاح")
+                        else addEvent("❌ فشل تعديل $p")
+                    } else {
+                        results.add(false)
                     }
                 }
                 "web_search" -> {
